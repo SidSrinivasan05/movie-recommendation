@@ -61,7 +61,7 @@ def search_title(title, top_k=5, movie_data=genre_movies):
 #     matched_row = movies_data[movies_data['title'].str.lower() == cleaned_title]
 #     if not matched_row.empty:
 #         return '|'.join(matched_row.iloc[0]['genres'])  # return genres as string
-#     else:
+#     else:g
 #         return None
 
 # def search_similar_genres_by_title(title):
