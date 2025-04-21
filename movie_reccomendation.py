@@ -13,6 +13,7 @@ og_movies['genres'] = og_movies['genres'].str.split('|')
 # Cleaning titles
 og_movies['title'] = og_movies['title'].apply(lambda title : re.sub("[^a-zA-Z0-9 ]", "", title))
 
+
 movies_data = og_movies[['movieId', 'title', 'genres']]
 
 full_list = []
@@ -26,55 +27,62 @@ unique_genres = pd.Series(full_list).drop_duplicates().reset_index(drop=True)
 
 genre_movies = movies_data[~movies_data['genres'].apply(lambda x: '(no genres listed)' in x)]
 
-genre_movies.to_csv("movies_catalog.csv", index=False)
+genre_movies.to_csv("movies_title_catalog.csv", index=False)
 
-def search_title(title, top_k=5, movie_data=genre_movies):
+def search_by_title(title, top_k=10, movie_data=genre_movies):
     # Clean the title input
     cleaned_title = re.sub("[^a-zA-Z0-9 ]", "", title).lower()
     
     vectorizer_title = TfidfVectorizer(ngram_range=(1, 2))
     tfidf_title = vectorizer_title.fit_transform(movie_data['title'])
     
-    # Transform the query title into its tf-idf vector representation
-    query_vec = vectorizer_title.transform([cleaned_title])
+    query_vec = vectorizer_title.transform([cleaned_title])     # Transform the query title into its tf-idf vector representation
+    similarity = cosine_similarity(query_vec, tfidf_title).flatten() # Compute cosine similarity between the input title and all movie titles
     
-    # Compute cosine similarity between the input title and all movie titles
-    similarity = cosine_similarity(query_vec, tfidf_title).flatten()
+    indices = np.argpartition(similarity, -top_k)[-top_k:]    # Get the indices of the top k most similar movies
     
-    # Get the indices of the top k most similar movies
-    indices = np.argpartition(similarity, -top_k)[-top_k:]
-    
-    # Collect the top k most similar movies
     results = movie_data.iloc[indices].copy()
     results['similarity'] = similarity[indices]
     
     return results.sort_values(by='similarity', ascending=False)
 
-# movies_data['genres_text'] = movies_data['genres'].apply(lambda x: ' '.join(x))
+genre_catalog = pd.read_csv("genres_catalog.csv")
+extra_catalog = pd.read_csv("movies.csv")
+extra_catalog['genres'] = extra_catalog['genres'].str.split('|')
 
 
-# vectorizer_genres = TfidfVectorizer(ngram_range=(1,2))
-# tfidf_genres = vectorizer_genres.fit_transform(movies_data['genres'])
+vectorizer_genres = TfidfVectorizer(ngram_range=(1,2))
+tfidf_genres = vectorizer_genres.fit_transform(genre_catalog['genres_text'])
 
-# def get_genres_by_title(title):
-#     cleaned_title = re.sub("[^a-zA-Z0-9 ]", "", title).lower()
-#     matched_row = movies_data[movies_data['title'].str.lower() == cleaned_title]
-#     if not matched_row.empty:
-#         return '|'.join(matched_row.iloc[0]['genres'])  # return genres as string
-#     else:g
-#         return None
+def search_by_genres(title, top_k=10, movie_data=genre_catalog):
+    gen = get_genres(title)
+    genres = ' '.join( list(gen) )
+    query_vec = vectorizer_genres.transform([genres])
+    
+    similarity = cosine_similarity(query_vec, tfidf_genres).flatten()
+    indices = np.argpartition(similarity, -top_k)[-top_k:]
+    
+    results = movie_data.iloc[indices].copy()
+    results['similarity'] = similarity[indices]
+    return results.sort_values(by='similarity', ascending=False)
 
-# def search_similar_genres_by_title(title):
-#     genres = get_genres_by_title(title)
-#     if genres is None:
-#         return f"No genres found for title: {title}"
+def get_genres(word):
+    t_catalog = pd.DataFrame(extra_catalog['genres'].values, index=extra_catalog['title']).T
+    for col in t_catalog.columns:
+        if word.lower() in col.lower():
+            return list(t_catalog[col])[0]
+        
+        
+def combine_searches(movie):
+    genre_listing = search_by_genres(movie)
+    title_listing = search_by_title(movie)
+    
+    return pd.concat([genre_listing, title_listing], axis=0)
 
-#     query_vec = vectorizer_genres.transform([genres])
-#     similarity = cosine_similarity(query_vec, tfidf_genres).flatten()
-#     indices = np.argpartition(similarity, -10)[-10:]
-#     results = movies_data.iloc[indices].copy()
-#     results['similarity'] = similarity[indices]
-#     return results.sort_values(by='similarity', ascending=False)
+title = "Interstellar"
 
-# # Example usage
-# print(search_similar_genres_by_title("Interstellar"))
+# print(genre_movies.head())
+# print(extra_catalog.head())
+
+print(search_by_title(title))
+print(search_by_genres(title))
