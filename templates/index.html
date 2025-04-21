@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Movie Recommender</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f6f8;
+            padding: 40px;
+            max-width: 700px;
+            margin: auto;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+
+        form {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 30px;
+        }
+
+        input[type="text"] {
+            padding: 10px;
+            width: 60%;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+        }
+
+        button {
+            padding: 10px 16px;
+            font-size: 16px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        button[type="submit"] {
+            background-color: #4CAF50;
+            color: white;
+        }
+
+        button[type="button"] {
+            background-color: #f44336;
+            color: white;
+        }
+
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        li {
+            background-color: white;
+            padding: 12px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .no-results {
+            text-align: center;
+            color: #666;
+        }
+    </style>
+
+    <script>
+        function resetForm() {
+            document.querySelector('input[name="title"]').value = "";
+            const resultsSection = document.getElementById("results");
+            if (resultsSection) {
+                resultsSection.style.display = "none";
+            }
+        }
+    </script>
+</head>
+<body>
+    <h1>🎬 Movie Recommender</h1>
+
+    <form method="POST">
+        <input type="text" name="title" placeholder="Enter a movie title" required>
+        <button type="submit">Search</button>
+        <button type="button" onclick="resetForm()">Reset</button>
+    </form>
+
+    <div id="results">
+        {% if results is string %}
+            <p class="no-results">{{ results }}</p>
+        {% elif results is not none %}
+            <h2>Top Recommendations:</h2>
+            <ul>
+                {% for index, row in results.iterrows() %}
+                    <li><strong>{{ row['title'] }}</strong> — Similarity: {{ "%.2f"|format(row['similarity']) }}</li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+    </div>
+</body>
+</html>

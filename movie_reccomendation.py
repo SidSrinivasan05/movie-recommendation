@@ -1,75 +1,80 @@
 import numpy as np
-from sklearn.metrics.pairwise import cosine_similarity
-from sklearn.feature_extraction.text import TfidfVectorizer
 import pandas as pd
 
-import numpy as np
-
-
+from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.feature_extraction.text import TfidfVectorizer
 
 import re
 
-def clean_title(title):
-    return re.sub("[^a-zA-Z0-9 ]", "", title)
+og_movies = pd.read_csv("movies.csv")
 
-df1 = pd.read_csv("movies.csv")
+og_movies['genres'] = og_movies['genres'].str.split('|')
 
-df1['genres'] = df1['genres'].str.split('|')
+# Cleaning titles
+og_movies['title'] = og_movies['title'].apply(lambda title : re.sub("[^a-zA-Z0-9 ]", "", title))
 
-# Bersihkan judul film
-df1['title'] = df1['title'].apply(clean_title)
+movies_data = og_movies[['movieId', 'title', 'genres']]
 
-# Perbarui movies_data
-movies_data = df1[['movieId', 'title', 'genres']]
-
-print(movies_data)
-
-
-# # Load datasets
-# movies_df = pd.read_csv('movies.csv')
-# tags_df = pd.read_csv('tags.csv')
-
-# # Clean and process the data
-# movies_df['genre list'] = movies_df['genres'].apply(lambda x: x.split('|'))
-# # grouped_df = tags_df.groupby('movieId', as_index=False).agg({'tag': list})
-# # movies_df = movies_df.merge(grouped_df, on='movieId', how='left')
-# # movies_df['tag'] = movies_df['tag'].apply(lambda x: x if isinstance(x, list) else [])
-# movies_df['word'] = movies_df['genre list']
-# movies_df['word'] = movies_df['word'].apply(lambda x: ' '.join(map(str, x)) if isinstance(x, list) else '')
-
-# movies_df = movies_df.drop(columns=['genres', 'genre list'], axis=1)
-# print(movies_df)
-# # # TF-IDF Vectorization
-# vectorizer = TfidfVectorizer(stop_words='english')
-# tfidf_matrix = vectorizer.fit_transform(movies_df['word'])
-
-# # # Calculate Cosine Similarity (using sparse matrix)
-# cosine_sim = cosine_similarity(tfidf_matrix, tfidf_matrix, dense_output=False)
-
-# # # Convert sparse matrix to dense (if needed for easier manipulation)
-# cosine_sim_dense = cosine_sim.toarray()
-
-# # # Set the diagonal elements to zero
-# np.fill_diagonal(cosine_sim_dense, 0)
-
-
-# print(cosine_sim_dense)
-# # Function to get movie recommendations based on a given movieId
-# def get_movie_recommendations(movie_id, cosine_sim, top_n=5):
-#     sim_scores = cosine_sim[movie_id].toarray().flatten()  # Convert sparse matrix to dense and flatten
-#     sim_scores = sorted(enumerate(sim_scores), key=lambda x: x[1], reverse=True)
+full_list = []
+for item in movies_data['genres']:
+    item_list = [genre for genre in item]
+    for i in item_list:
+        full_list.append(i)
     
-#     # Exclude the movie itself (index 0 is the movie itself)
-#     sim_scores = [score for score in sim_scores if score[0] != movie_id]
-    
-#     # Get top N similar movies
-#     top_similar_movies = sim_scores[:top_n]
-    
-#     # Get movie titles for the top similar movieIds
-#     similar_movie_titles = [movies_df.iloc[i[0]]['title'] for i in top_similar_movies]
-    
-#     return similar_movie_titles
+unique_genres = pd.Series(full_list).drop_duplicates().reset_index(drop=True)
 
-# # Get recommendations for a specific movie (e.g., movieId=1)
-# recommended_movies = get_movie_recommendations(movie_id=1, cosine_sim=cosine_sim_dense, top_n=5)
-# print("Recommended Movies:", recommended_movies)
+
+genre_movies = movies_data[~movies_data['genres'].apply(lambda x: '(no genres listed)' in x)]
+
+genre_movies.to_csv("movies_catalog.csv", index=False)
+
+def search_title(title, top_k=5, movie_data=genre_movies):
+    # Clean the title input
+    cleaned_title = re.sub("[^a-zA-Z0-9 ]", "", title).lower()
+    
+    vectorizer_title = TfidfVectorizer(ngram_range=(1, 2))
+    tfidf_title = vectorizer_title.fit_transform(movie_data['title'])
+    
+    # Transform the query title into its tf-idf vector representation
+    query_vec = vectorizer_title.transform([cleaned_title])
+    
+    # Compute cosine similarity between the input title and all movie titles
+    similarity = cosine_similarity(query_vec, tfidf_title).flatten()
+    
+    # Get the indices of the top k most similar movies
+    indices = np.argpartition(similarity, -top_k)[-top_k:]
+    
+    # Collect the top k most similar movies
+    results = movie_data.iloc[indices].copy()
+    results['similarity'] = similarity[indices]
+    
+    return results.sort_values(by='similarity', ascending=False)
+
+# movies_data['genres_text'] = movies_data['genres'].apply(lambda x: ' '.join(x))
+
+
+# vectorizer_genres = TfidfVectorizer(ngram_range=(1,2))
+# tfidf_genres = vectorizer_genres.fit_transform(movies_data['genres'])
+
+# def get_genres_by_title(title):
+#     cleaned_title = re.sub("[^a-zA-Z0-9 ]", "", title).lower()
+#     matched_row = movies_data[movies_data['title'].str.lower() == cleaned_title]
+#     if not matched_row.empty:
+#         return '|'.join(matched_row.iloc[0]['genres'])  # return genres as string
+#     else:
+#         return None
+
+# def search_similar_genres_by_title(title):
+#     genres = get_genres_by_title(title)
+#     if genres is None:
+#         return f"No genres found for title: {title}"
+
+#     query_vec = vectorizer_genres.transform([genres])
+#     similarity = cosine_similarity(query_vec, tfidf_genres).flatten()
+#     indices = np.argpartition(similarity, -10)[-10:]
+#     results = movies_data.iloc[indices].copy()
+#     results['similarity'] = similarity[indices]
+#     return results.sort_values(by='similarity', ascending=False)
+
+# # Example usage
+# print(search_similar_genres_by_title("Interstellar"))
