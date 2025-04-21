@@ -56,6 +56,8 @@ tfidf_genres = vectorizer_genres.fit_transform(genre_catalog['genres_text'])
 
 def search_by_genres(title, top_k=10, movie_data=genre_catalog):
     gen = get_genres(title)
+    if gen is None:
+        return None
     genres = ' '.join( list(gen) )
     query_vec = vectorizer_genres.transform([genres])
     
@@ -73,16 +75,41 @@ def get_genres(word):
             return list(t_catalog[col])[0]
         
         
-def combine_searches(movie):
-    genre_listing = search_by_genres(movie)
-    title_listing = search_by_title(movie)
-    
-    return pd.concat([genre_listing, title_listing], axis=0)
+def combine_searches(movie, weight_title=0.7, weight_genre=0.3):
+    title_df = search_by_title(movie)
+    genre_df = search_by_genres(movie)
+    if genre_df is None:
+        return title_df
+    if title_df is None:
+        return genre_df
+    # Normalize similarity scores between 0 and 1
+    title_df['similarity'] = title_df['similarity'] / title_df['similarity'].max()
+    genre_df['similarity'] = genre_df['similarity'] / genre_df['similarity'].max()
 
-title = "Interstellar"
+    # Rename for clarity
+    title_df.rename(columns={'similarity': 'title_score'}, inplace=True)
+    genre_df.rename(columns={'similarity': 'genre_score'}, inplace=True)
+
+    # Merge on title (inner or outer depending on if you want partial matches)
+    combined = pd.merge(title_df, genre_df, on='title', how='outer')
+
+    combined['title_score'] = combined['title_score'].fillna(0)
+    combined['genre_score'] = combined['genre_score'].fillna(0)
+
+    # Weighted similarity
+    combined['similarity'] = (
+        weight_title * combined['title_score'] +
+        weight_genre * combined['genre_score']
+    )
+
+    return combined.sort_values(by='similarity', ascending=False)
+
+title = "Pirates of the Carribean"
 
 # print(genre_movies.head())
 # print(extra_catalog.head())
 
 print(search_by_title(title))
 print(search_by_genres(title))
+
+print(combine_searches(title))
