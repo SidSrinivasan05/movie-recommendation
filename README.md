@@ -20,6 +20,6 @@ This is a Flask-based movie recommendation system that helps users discover movi
 
 ## Dataset
 
-The project uses the [MovieLens dataset](https://grouplens.org/datasets/movielens/), specifically `movies.csv`, which contains:
+The project uses the [MovieLens dataset](https://grouplens.org/datasets/movielens/)
 
 
