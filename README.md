@@ -12,7 +12,7 @@ This is a Flask-based movie recommendation system that helps users discover movi
 
 ## Tech Stack
 
-- Python 3.9+
+- Python
 - Flask
 - Pandas
 - scikit-learn (TF-IDF & Cosine Similarity)
@@ -23,3 +23,16 @@ This is a Flask-based movie recommendation system that helps users discover movi
 The project uses the [MovieLens dataset](https://grouplens.org/datasets/movielens/)
 
 
+## Usage
+
+To see the web interface and use the movie reccomender for yourself, first clone the repo. Then run
+
+```
+python app.py
+```
+
+and open the following in your browser
+
+```
+http://127.0.0.1:5000/
+```
